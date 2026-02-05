@@ -28,4 +28,36 @@ model User {
   role      Role 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  reservations Reservation[]
+  vehicles     Vehicle[]
+  phone    String? 
+}
+
+model Vehicle {
+  id           Int           @id @default(autoincrement())
+  plate        String        @unique
+  userId       Int
+  user         User          @relation(fields: [userId], references: [id])
+  reservations Reservation[]
+}
+
+model ParkingSpot {
+  id           Int           @id @default(autoincrement())
+  code         String        @unique
+  reservations Reservation[]
+}
+
+model Reservation {
+  id            Int          @id @default(autoincrement())
+  startTime     DateTime
+  endTime       DateTime
+  userId        Int
+  vehicleId     Int
+  parkingSpotId Int
+
+  user          User         @relation(fields: [userId], references: [id])
+  vehicle       Vehicle      @relation(fields: [vehicleId], references: [id])
+  parkingSpot   ParkingSpot  @relation(fields: [parkingSpotId], references: [id])
+
+  createdAt     DateTime     @default(now())
 }

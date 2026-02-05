@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable,NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { User, Prisma, Role } from '../generated/prisma/client';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -16,7 +16,7 @@ export class UsersService {
       data: {
         email: data.email,
         name: data.name,
-        role: data.role ?? Role.cliente, // Si data.role es undefined, usa un valor por defecto
+        role: data.role ?? Role.cliente, 
         password: hashedPassword,
       },
     });
@@ -30,15 +30,22 @@ export class UsersService {
     return this.prisma.user.findUnique({ where: { id } });
   }
 
-  async updateUser(id: number, data: UpdateUserDto): Promise<User> {
-    if (data.password) {
-      data.password = await bcrypt.hash(data.password, 10);
-    }
-    return this.prisma.user.update({
-      where: { id },
-      data,
-    });
+ async update(id: number, dto: UpdateUserDto) {
+  // 1️⃣ Verificar que el usuario exista
+  const user = await this.prisma.user.findUnique({ where: { id } });
+  if (!user) {
+    throw new NotFoundException('Usuario no encontrado');
   }
+
+  // 2️⃣ Actualizar los campos permitidos
+  return this.prisma.user.update({
+    where: { id },
+    data: {
+      ...dto,
+    },
+  });
+}
+
 
   async deleteUser(id: number): Promise<User> {
     return this.prisma.user.delete({ where: { id } });
