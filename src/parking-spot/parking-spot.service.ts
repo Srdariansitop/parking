@@ -48,52 +48,85 @@ export class ParkingSpotService {
 
   // CASO 2: OCUPACIÓN ACTUAL 
 
-  async getCurrentOccupancy() {
+ async getCurrentOccupancy() {
   const now = new Date();
 
   // 1️⃣ Total de plazas
   const totalSpots = await this.prisma.parkingSpot.count();
 
-  // 2️⃣ Plazas ocupadas actualmente
-  const occupiedSpots = await this.prisma.parkingSpot.count({
+  // 2️⃣ Reservas activas actualmente (no canceladas)
+  const activeReservations = await this.prisma.reservation.findMany({
     where: {
-      reservations: {
-        some: {
-          startTime: { lte: now },
-          endTime: { gte: now },
+      cancel: false,
+      startTime: { lte: now },
+      endTime: { gte: now },
+    },
+    include: {
+      parkingSpot: {
+        select: {
+          id: true,
+          code: true,
+        },
+      },
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+      vehicle: {
+        select: {
+          id: true,
+          plate: true,
         },
       },
     },
   });
 
-  // 3️⃣ Plazas libres (sin reservas activas)
-  const freeSpotsList = await this.prisma.parkingSpot.findMany({
+  // 3️⃣ Plazas ocupadas (detalle)
+  const occupiedSpots = activeReservations.map((reservation) => ({
+    spotCode: reservation.parkingSpot.code,
+    user: reservation.user,
+    vehicle: reservation.vehicle,
+    startTime: reservation.startTime,
+    endTime: reservation.endTime,
+  }));
+
+  const occupiedCount = occupiedSpots.length;
+
+  // 4️⃣ Plazas libres
+  const freeSpots = await this.prisma.parkingSpot.findMany({
     where: {
       reservations: {
         none: {
+          cancel: false,
           startTime: { lte: now },
           endTime: { gte: now },
         },
       },
     },
     select: {
+      id: true,
       code: true,
     },
   });
 
-  const freeCodes = freeSpotsList.map((spot) => spot.code);
-
-  // 4️⃣ Devolver resultado
+  // 5️⃣ Respuesta final
   return {
-    totalSpots,
-    occupiedSpots,
-    freeSpots: totalSpots - occupiedSpots,
-    occupancyPercentage:
-      totalSpots === 0
-        ? 0
-        : Math.round((occupiedSpots / totalSpots) * 100),
-    freeCodes, // códigos de las plazas disponibles
+    summary: {
+      totalSpots,
+      occupiedSpots: occupiedCount,
+      freeSpots: totalSpots - occupiedCount,
+      occupancyPercentage:
+        totalSpots === 0
+          ? 0
+          : Math.round((occupiedCount / totalSpots) * 100),
+    },
+    occupied: occupiedSpots,
+    free: freeSpots,
   };
 }
+
 
 }

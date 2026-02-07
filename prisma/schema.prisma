@@ -54,6 +54,7 @@ model Reservation {
   userId        Int
   vehicleId     Int
   parkingSpotId Int
+  cancel        Boolean
 
   user          User         @relation(fields: [userId], references: [id])
   vehicle       Vehicle      @relation(fields: [vehicleId], references: [id])
