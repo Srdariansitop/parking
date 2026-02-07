@@ -5,6 +5,8 @@ import { AuthModule } from './auth/auth.module';
 import { VehiclesModule } from './vehicle/vehicle.module';
 import { ParkingSpotModule } from './parking-spot/parking-spot.module';
 import { ReservationModule } from './reservation/reservation.module';
+import { MongooseModule } from '@nestjs/mongoose';
+import { LogsModule } from './logs/logs.module';
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import { ReservationModule } from './reservation/reservation.module';
     VehiclesModule,
     ParkingSpotModule,
     ReservationModule,
+    MongooseModule.forRoot(process.env.MONGO_URI!),
+    LogsModule,
   ],
 })
 export class AppModule {}
