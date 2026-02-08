@@ -5,5 +5,13 @@
   "testRegex": ".e2e-spec.ts$",
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
-  }
+  },
+  "testTimeout": 30000,
+  "moduleNameMapper": {
+    "^(\\.{1,2}/.*)\\.js$": "$1",
+    "^src/generated/prisma/(.*)$": "<rootDir>/src/generated/prisma/$1"
+  },
+  "transformIgnorePatterns": [
+    "node_modules/(?!@prisma)"
+  ]
 }
