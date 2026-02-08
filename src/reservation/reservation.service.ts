@@ -7,10 +7,17 @@ import {
 import { PrismaService } from '../prisma.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateReservationDto } from './dto/update-reservation.dto';
+import { LogsService } from '../logs/logs.service';
+import { LogType } from '../logs/schemas/log.schema';
+
+
 
 @Injectable()
 export class ReservationService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly logsService: LogsService,
+  ) {}
 
 async create(userId: number, dto: CreateReservationDto) {
   if (!dto || !dto.startTime || !dto.endTime || !dto.vehicleId) {
@@ -40,7 +47,7 @@ async create(userId: number, dto: CreateReservationDto) {
     );
   }
 
-  // 2️⃣ Validar que el vehículo NO tenga otra reserva solapada
+  // 2️⃣ Validar solapamiento del vehículo
   const vehicleConflict = await this.prisma.reservation.findFirst({
     where: {
       vehicleId: dto.vehicleId,
@@ -58,7 +65,7 @@ async create(userId: number, dto: CreateReservationDto) {
     );
   }
 
-  // 3️⃣ Buscar una plaza disponible
+  // 3️⃣ Buscar plaza disponible
   const availableSpot = await this.prisma.parkingSpot.findFirst({
     where: {
       reservations: {
@@ -80,7 +87,7 @@ async create(userId: number, dto: CreateReservationDto) {
   }
 
   // 4️⃣ Crear reserva
-  return this.prisma.reservation.create({
+  const reservation = await this.prisma.reservation.create({
     data: {
       startTime: start,
       endTime: end,
@@ -94,7 +101,23 @@ async create(userId: number, dto: CreateReservationDto) {
       vehicle: true,
     },
   });
+
+  // 5️⃣ Crear log en MongoDB
+  await this.logsService.create(
+    LogType.RESERVATION_CREATED,
+    userId,
+    dto.vehicleId,
+    availableSpot.id,
+    {
+      reservationId: reservation.id,
+      startTime: start,
+      endTime: end,
+    },
+  );
+
+  return reservation;
 }
+
 
 
 
@@ -144,13 +167,142 @@ async create(userId: number, dto: CreateReservationDto) {
 
   // 🧠 Soft delete
   async cancel(id: number, userId: number) {
-    await this.findOne(id, userId);
+  const now = new Date();
 
-    return this.prisma.reservation.update({
-      where: { id },
-      data: {
-        cancel: true,
-      },
-    });
+  // 1️⃣ Obtener reserva válida
+  const reservation = await this.prisma.reservation.findFirst({
+    where: {
+      id,
+      userId,
+      cancel: false,
+    },
+  });
+
+  if (!reservation) {
+    throw new NotFoundException(
+      'Reserva no encontrada o ya fue cancelada',
+    );
   }
+
+  // 2️⃣ Validar que NO sea una reserva pasada
+  if (reservation.endTime <= now) {
+    throw new BadRequestException(
+      'No se puede cancelar una reserva que ya ha finalizado',
+    );
+  }
+
+  // 3️⃣ Cancelar reserva
+  const cancelledReservation = await this.prisma.reservation.update({
+    where: { id },
+    data: {
+      cancel: true,
+    },
+  });
+
+  // 4️⃣ Crear log en MongoDB
+  await this.logsService.create(
+    LogType.RESERVATION_CANCELLED,
+    userId,
+    reservation.vehicleId,
+    reservation.parkingSpotId,
+    {
+      reservationId: reservation.id,
+      startTime: reservation.startTime,
+      endTime: reservation.endTime,
+      cancelledAt: now,
+    },
+  );
+
+  return cancelledReservation;
+}
+
+//entrada 
+async registerEntry(reservationId: number) {
+  const now = new Date();
+
+  const reservation = await this.prisma.reservation.findUnique({
+    where: { id: reservationId },
+    include: {
+      vehicle: true,
+      parkingSpot: true,
+    },
+  });
+
+  if (!reservation || reservation.cancel) {
+    throw new BadRequestException('Reserva inválida o cancelada');
+  }
+
+  if (now < reservation.startTime || now > reservation.endTime) {
+    throw new BadRequestException(
+      'La entrada solo es válida dentro del horario de la reserva',
+    );
+  }
+
+  // Crear log de entrada
+  await this.logsService.create(
+    LogType.VEHICLE_ENTRY,
+    reservation.userId,
+    reservation.vehicleId,
+    reservation.parkingSpotId,
+    {
+      reservationId: reservation.id,
+      plate: reservation.vehicle.plate,
+      spotCode: reservation.parkingSpot.code,
+      timestamp: now,
+    },
+  );
+
+  return {
+    message: 'Entrada registrada correctamente',
+    reservationId,
+  };
+}
+
+
+
+
+
+//salida 
+async registerExit(reservationId: number) {
+  const now = new Date();
+
+  const reservation = await this.prisma.reservation.findUnique({
+    where: { id: reservationId },
+    include: {
+      vehicle: true,
+      parkingSpot: true,
+    },
+  });
+
+  if (!reservation || reservation.cancel) {
+    throw new BadRequestException('Reserva inválida o cancelada');
+  }
+
+  // Crear log de salida
+  await this.logsService.create(
+    LogType.VEHICLE_EXIT,
+    reservation.userId,
+    reservation.vehicleId,
+    reservation.parkingSpotId,
+    {
+      reservationId: reservation.id,
+      plate: reservation.vehicle.plate,
+      spotCode: reservation.parkingSpot.code,
+      timestamp: now,
+    },
+  );
+
+  return {
+    message: 'Salida registrada correctamente',
+    reservationId,
+  };
+}
+
+
+
+
+
+
+
+
 }
