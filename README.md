@@ -305,13 +305,16 @@ Los logs son accesibles mediante endpoints protegidos (por ejemplo, accesibles s
 
 ## 11. Pruebas e2e
 
-El proyecto incluye **pruebas end-to-end (e2e)** para los 3 casos de uso principales:
+El proyecto incluye **pruebas end-to-end (e2e)** para los 4 casos de uso principales descritos en el enunciado.
 
-1. Reserva de plaza de aparcamiento.
-2. Consulta de ocupación del parking.
-3. Actualización de detalles de usuario.
+Los tests se encuentran en la carpeta `test`:
 
-Para ejecutarlas:
+- `users.e2e-spec.ts`: pruebas del flujo de usuarios (registro, login, actualización de datos, roles y permisos).  
+- `reservations.e2e-spec.ts`: pruebas del flujo de reservas (creación de reserva, validación de plaza disponible, reglas de negocio básicas).  
+- `parking-occupancy.e2e-spec.ts`: pruebas del endpoint de ocupación del parking (cálculo de plazas ocupadas/libres en función de las reservas activas).  
+- `reservations-logs.e2e-spec.ts`: pruebas de los logs de actividad relacionados con reservas (cancelaciones, entradas y salidas de vehículos) y su persistencia en MongoDB.
+
+Todos los tests se ejecutan con el comando:
 
 ```bash
 npm run test:e2e
