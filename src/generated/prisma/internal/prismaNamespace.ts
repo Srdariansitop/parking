@@ -780,7 +780,6 @@ export const ReservationScalarFieldEnum = {
   userId: 'userId',
   vehicleId: 'vehicleId',
   parkingSpotId: 'parkingSpotId',
-  cancel: 'cancel',
   createdAt: 'createdAt'
 } as const
 
@@ -870,13 +869,6 @@ export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel
  * Reference to a field of type 'DateTime[]'
  */
 export type ListDateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime[]'>
-    
-
-
-/**
- * Reference to a field of type 'Boolean'
- */
-export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
     
 
 

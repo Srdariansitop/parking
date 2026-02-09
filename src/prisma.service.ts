@@ -1,5 +1,4 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-// Importamos el cliente generado
 import { PrismaClient } from './generated/prisma/client'; 
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
