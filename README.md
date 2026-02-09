@@ -1,3 +1,5 @@
+Parking API es una aplicación backend desarrollada con Node.js y NestJS que expone una API RESTful para la gestión completa de un parking. Permite administrar usuarios, vehículos, plazas de aparcamiento y reservas, incorporando lógica de negocio para validar disponibilidad, controlar entradas y salidas, y registrar cancelaciones. La plataforma implementa autenticación basada en JWT y autorización por roles (admin, empleado, cliente), utilizando PostgreSQL y Prisma como base de datos principal para las entidades de negocio y MongoDB como sistema de logs para auditar las operaciones críticas del sistema.
+
 ![Portada del proyecto](img.jpg)
 
 ## 1. Requisitos previos
@@ -322,3 +324,5 @@ npm run test:e2e
 # o
 yarn test:e2e
 ```
+## Coleccion de EndPoints de Postamn
+[Colección de Postman](https://dariantop-6090400.postman.co/workspace/Darian's-Workspace~6f2d23f7-9d66-4c15-80ec-2bcaa1cb7c72/collection/50102764-d8a23ce6-afed-4bfe-b0eb-6239587f7ac3?action=share&source=copy-link&creator=50102764)
