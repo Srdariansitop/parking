@@ -1,3 +1,4 @@
+![Portada del proyecto](img.jpg)
 
 ## 1. Requisitos previos
 
