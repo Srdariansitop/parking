@@ -1,98 +1,320 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+## 1. Requisitos previos
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Antes de iniciar, asegúrate de tener instalado:
 
-## Description
+- Node.js (versión LTS recomendada, por ejemplo 18.x)
+- npm o yarn
+- PostgreSQL (para la base de datos principal de negocio)
+- MongoDB (para el sistema de logs)
+- Git (opcional, para clonar el repositorio)
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+---
 
-## Project setup
+## 2. Clonar el repositorio e instalar dependencias
 
 ```bash
-$ npm install
+git clone <URL_DE_TU_REPOSITORIO>
+cd <nombre-del-proyecto>
+
+# Instalar dependencias
+npm install
+# o
+yarn install
 ```
 
-## Compile and run the project
+---
+
+## 3. Configuración de bases de datos
+
+La aplicación utiliza **dos bases de datos**:
+
+- **PostgreSQL**: base de datos principal para las entidades de negocio (User, Vehicle, ParkingSpot, Reservation), gestionada con **Prisma ORM**.
+- **MongoDB**: base de datos secundaria para almacenar **logs** de los procesos críticos (reservas, cancelaciones, entradas, salidas, etc.).
+
+### 3.1. Crear la base de datos en PostgreSQL
+
+1. Inicia tu servidor de PostgreSQL.
+2. Crea una base de datos (por ejemplo `parking_db`):
+
+   ```sql
+   CREATE DATABASE parking_db;
+   ```
+
+3. Asegúrate de tener un usuario y contraseña con permisos sobre esa base de datos.
+
+### 3.2. Crear la base de datos en MongoDB
+
+1. Inicia tu servidor de MongoDB (local o en la nube, por ejemplo Atlas).
+2. Crea una base de datos para los logs (por ejemplo `parking_logs`).
+3. Obtén la URL de conexión (por ejemplo: `mongodb://localhost:27017/parking_logs` o la cadena que te dé tu proveedor).
+
+---
+
+## 4. Configuración de variables de entorno (.env)
+
+Las URLs de conexión **no se incluyen en el repositorio** por motivos de seguridad.  
+Debes crear un archivo `.env` en la raíz del proyecto antes de ejecutar la aplicación.
+
+Ejemplo de `.env` (ajusta valores según tu entorno):
+
+```env
+# URL de conexión a PostgreSQL (Prisma)
+DATABASE_URL="postgresql://usuario:password@localhost:5432/parking_db?schema=public"
+
+# URL de conexión a MongoDB para logs
+MONGODB_URI="mongodb://localhost:27017/parking_logs"
+
+```
+
+> Importante:  
+> - `DATABASE_URL` es usada por Prisma para conectarse a PostgreSQL.  
+> - `MONGODB_URI` se utiliza en la capa de logs para registrar la actividad (reservas, cancelaciones, entradas, salidas, etc.).  
+> - Estos valores **no deben subirse al repositorio**. `.env` debe estar en el `.gitignore`.
+
+---
+
+## 5. Esquema de datos (Prisma + PostgreSQL)
+
+La base de datos principal está modelada con **Prisma** en el archivo `schema.prisma`.  
+Se definen las siguientes entidades y relaciones:
+
+- **Role** (enum): `admin`, `empleado`, `cliente`.
+- **User**: datos del usuario, incluyendo `name`, `email`, `password`, `role`, `phone` (opcional) y relaciones con `reservations` y `vehicles`.
+- **Vehicle**: vehículo asociado a un usuario (`userId`), con `plate` única.
+- **ParkingSpot**: plaza de aparcamiento con `code` único, relacionada con `Reservation`.
+- **Reservation**: reserva que relaciona `User`, `Vehicle` y `ParkingSpot`, con `startTime`, `endTime` y campos de auditoría (`createdAt`).
+
+Esquema simplificado (ya implementado en tu proyecto):
+
+```prisma
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  admin
+  empleado
+  cliente
+}
+
+model User {
+  id           Int           @id @default(autoincrement())
+  name         String
+  email        String        @unique
+  password     String
+  role         Role
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  reservations Reservation[]
+  vehicles     Vehicle[]
+  phone        String?
+}
+
+model Vehicle {
+  id           Int           @id @default(autoincrement())
+  plate        String        @unique
+  userId       Int
+  user         User          @relation(fields: [userId], references: [id])
+  reservations Reservation[]
+}
+
+model ParkingSpot {
+  id           Int           @id @default(autoincrement())
+  code         String        @unique
+  reservations Reservation[]
+}
+
+model Reservation {
+  id            Int          @id @default(autoincrement())
+  startTime     DateTime
+  endTime       DateTime
+  userId        Int
+  vehicleId     Int
+  parkingSpotId Int
+
+  user          User         @relation(fields: [userId], references: [id])
+  vehicle       Vehicle      @relation(fields: [vehicleId], references: [id])
+  parkingSpot   ParkingSpot  @relation(fields: [parkingSpotId], references: [id])
+
+  createdAt     DateTime     @default(now())
+}
+```
+
+Para aplicar el esquema en tu base de datos PostgreSQL:
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npx prisma migrate dev --name init
+# o
+npx prisma db push
 ```
 
-## Run tests
+---
+
+## 6. Inicialización de la base de datos de logs (MongoDB)
+
+La parte de logs utiliza la URL `MONGODB_URI` desde el `.env`.  
+Al iniciar la aplicación, se establece la conexión y se crean/usan las colecciones necesarias para registrar:
+
+- Reservas creadas
+- Reservas canceladas
+- Entradas de vehículos
+- Salidas de vehículos
+
+No suele necesitar migraciones explícitas (MongoDB es no relacional), basta con que la URL sea válida y el servidor esté levantado.
+
+---
+
+## 7. Levantar la aplicación
+
+Una vez configurado el `.env` y las bases de datos:
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+# Desarrollo
+npm run start:dev
+# o
+yarn start:dev
 ```
 
-## Deployment
+La API quedará disponible en algo como:
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+- `http://localhost:3000`
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+(ajusta el puerto según tu `PORT`).
+
+---
+
+## 8. Endpoints principales y casos de uso
+
+La API se estructura en controladores (NestJS) para cada entidad y para los casos de uso requeridos.
+
+### 8.1. Parking spots (plazas de parking)
+
+Controlador:
+
+```ts
+@Controller('parking-spots')
+```
+
+- CRUD completo para la entidad `ParkingSpot` (crear, listar, actualizar, eliminar plazas).
+- Endpoint especial para ocupación actual del parking (Caso 2):
+
+```ts
+@Get('parking-spots/stats/occupancy')
+```
+
+Este endpoint calcula la ocupación del parking consultando las reservas vigentes y las plazas disponibles.
+
+### 8.2. Users (usuarios)
+
+Controlador:
+
+```ts
+@Controller('users')
+```
+
+- CRUD completo para `User`:
+  - Crear usuario
+  - Obtener usuarios / usuario por id
+  - Actualizar datos del usuario (nombre, email, teléfono, etc.)
+  - Eliminar usuario
+
+Incluye lógica de autorización basada en roles para que solo perfiles adecuados (por ejemplo `admin`) puedan actualizar o gestionar otros usuarios.
+
+### 8.3. Reservations (reservas)
+
+Controlador:
+
+```ts
+@Controller('reservations')
+```
+
+- Crear reservas (Caso 1: reservar plaza de aparcamiento).
+- Consultar reservas.
+- Actualizar y cancelar reservas.
+
+Endpoints específicos:
+
+```ts
+@Patch('reservations/:id/cancel')
+```
+
+- Permite cancelar una reserva.
+- Registra el evento en MongoDB como log de actividad.
+
+```ts
+@Patch('reservations/:id/entry')
+@Patch('reservations/:id/exit')
+```
+
+- `entry`: registra la entrada del vehículo al parking.
+- `exit`: registra la salida del vehículo.
+- Ambos endpoints generan logs en MongoDB y validan que la entrada/salida se produzca dentro del intervalo de la reserva (no se permite entrar fuera del rango de `startTime`–`endTime`).
+
+### 8.4. Vehicles (vehículos)
+
+Controlador:
+
+```ts
+@Controller('vehicles')
+```
+
+- CRUD de la entidad `Vehicle`:
+  - Asociar vehículos a usuarios.
+  - Listar vehículos.
+  - Actualizar datos del vehículo.
+  - Eliminar vehículos.
+
+---
+
+## 9. Autenticación y autorización
+
+La aplicación implementa:
+
+- **Autenticación JWT**:
+  - El usuario se autentica (login) y obtiene un token JWT firmado con `JWT_SECRET`.
+  - El token se envía en el header `Authorization: Bearer <token>` en las peticiones protegidas.
+
+- **Autorización basada en roles**:
+  - Roles definidos en el enum `Role`: `admin`, `empleado`, `cliente`.
+  - Diferentes endpoints requieren permisos concretos:
+    - `admin`: gestión de usuarios, acceso a logs, etc.
+    - `empleado`: consulta de ocupación, operaciones internas.
+    - `cliente`: creación y gestión de sus propias reservas, vehículos, etc.
+
+---
+
+## 10. Logs de actividad (MongoDB)
+
+Cada operación crítica genera registros en la base de datos de logs (MongoDB):
+
+- Creación de reservas
+- Cancelación de reservas
+- Entrada de vehículo (`entry`)
+- Salida de vehículo (`exit`)
+
+Los logs son accesibles mediante endpoints protegidos (por ejemplo, accesibles solo para `admin`) para cubrir el Caso 4 del enunciado (acceso a logs del parking).
+
+---
+
+## 11. Pruebas e2e
+
+El proyecto incluye **pruebas end-to-end (e2e)** para los 3 casos de uso principales:
+
+1. Reserva de plaza de aparcamiento.
+2. Consulta de ocupación del parking.
+3. Actualización de detalles de usuario.
+
+Para ejecutarlas:
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm run test:e2e
+# o
+yarn test:e2e
 ```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
