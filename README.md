@@ -88,7 +88,7 @@ Se definen las siguientes entidades y relaciones:
 - **ParkingSpot**: plaza de aparcamiento con `code` único, relacionada con `Reservation`.
 - **Reservation**: reserva que relaciona `User`, `Vehicle` y `ParkingSpot`, con `startTime`, `endTime` y campos de auditoría (`createdAt`).
 
-Esquema simplificado (ya implementado en tu proyecto):
+Esquema simplificado:
 
 ```prisma
 generator client {
